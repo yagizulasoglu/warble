@@ -52,6 +52,7 @@
               Edit Profile
             </a>
             <form method="POST" action="/users/delete">
+              {{ g.csrf_form.hidden_tag() }}
               <button class="btn btn-outline-danger ms-2">
                 Delete Profile
               </button>
@@ -61,10 +62,12 @@
             <form method="POST"
                   action="/users/stop-following/{{ user.id }}">
               <button class="btn btn-primary">Unfollow</button>
+              {{ g.csrf_form.hidden_tag() }}
             </form>
             {% else %}
             <form method="POST" action="/users/follow/{{ user.id }}">
               <button class="btn btn-outline-primary">Follow</button>
+              {{ g.csrf_form.hidden_tag() }}
             </form>
             {% endif %}
             {% endif %}

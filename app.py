@@ -3,9 +3,10 @@ from dotenv import load_dotenv
 
 from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
+from werkzeug.exceptions import Unauthorized
 from sqlalchemy.exc import IntegrityError
 
-from forms import UserAddForm, LoginForm, MessageForm
+from forms import UserAddForm, LoginForm, MessageForm, CsrfForm
 from models import db, connect_db, User, Message
 
 load_dotenv()
@@ -16,9 +17,9 @@ app = Flask(__name__)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
 app.config['SQLALCHEMY_ECHO'] = False
-app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
+#app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
 app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
-toolbar = DebugToolbarExtension(app)
+#toolbar = DebugToolbarExtension(app)
 
 connect_db(app)
 
@@ -49,6 +50,12 @@ def do_logout():
 
     if CURR_USER_KEY in session:
         del session[CURR_USER_KEY]
+
+@app.before_request
+def form_protection():
+    """Creates Csrf form protection"""
+
+    g.csrf_form = CsrfForm()
 
 
 @app.route('/signup', methods=["GET", "POST"])
@@ -117,6 +124,14 @@ def logout():
 
     form = g.csrf_form
 
+    if form.validate_on_submit():
+        do_logout()
+        flash("You are logged out!", "success")
+        return redirect("/")
+
+    else:
+        raise Unauthorized()
+
     # IMPLEMENT THIS AND FIX BUG
     # DO NOT CHANGE METHOD ON ROUTE
 
@@ -174,6 +189,7 @@ def show_following(user_id):
 def show_followers(user_id):
     """Show list of followers of this user."""
 
+
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
@@ -189,9 +205,14 @@ def start_following(follow_id):
     Redirect to following page for the current for the current user.
     """
 
+    if not g.csrf_form.validate_on_submit():
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
+
 
     followed_user = User.query.get_or_404(follow_id)
     g.user.following.append(followed_user)
@@ -200,12 +221,16 @@ def start_following(follow_id):
     return redirect(f"/users/{g.user.id}/following")
 
 
+
 @app.post('/users/stop-following/<int:follow_id>')
 def stop_following(follow_id):
     """Have currently-logged-in-user stop following this user.
 
     Redirect to following page for the current for the current user.
     """
+    if not g.csrf_form.validate_on_submit():
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
 
     if not g.user:
         flash("Access unauthorized.", "danger")
@@ -231,6 +256,9 @@ def delete_user():
 
     Redirect to signup page.
     """
+    if not g.csrf_form.validate_on_submit():
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
 
     if not g.user:
         flash("Access unauthorized.", "danger")
@@ -289,12 +317,21 @@ def delete_message(message_id):
     Check that this message was written by the current user.
     Redirect to user page on success.
     """
+    if not g.csrf_form.validate_on_submit():
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
 
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
     msg = Message.query.get_or_404(message_id)
+
+    if msg.user_id != g.user.id:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+
     db.session.delete(msg)
     db.session.commit()
 
@@ -313,6 +350,8 @@ def homepage():
     - logged in: 100 most recent messages of self & followed_users
     """
 
+    form = CsrfForm()
+
     if g.user:
         messages = (Message
                     .query
@@ -320,7 +359,7 @@ def homepage():
                     .limit(100)
                     .all())
 
-        return render_template('home.html', messages=messages)
+        return render_template('home.html', messages=messages, form=form)
 
     else:
         return render_template('home-anon.html')
