@@ -7,7 +7,7 @@ from werkzeug.exceptions import Unauthorized
 from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, LoginForm, MessageForm, CsrfForm, ProfileEditForm
-from models import db, connect_db, User, Message
+from models import db, connect_db, User, Message, DEFAULT_HEADER_IMAGE_URL, DEFAULT_IMAGE_URL
 
 load_dotenv()
 
@@ -17,9 +17,9 @@ app = Flask(__name__)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
 app.config['SQLALCHEMY_ECHO'] = False
-#app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
+# app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
 app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
-#toolbar = DebugToolbarExtension(app)
+# toolbar = DebugToolbarExtension(app)
 
 connect_db(app)
 
@@ -39,6 +39,13 @@ def add_user_to_g():
         g.user = None
 
 
+@app.before_request
+def form_protection():
+    """Creates Csrf form protection"""
+
+    g.csrf_form = CsrfForm()
+
+
 def do_login(user):
     """Log in user."""
 
@@ -50,12 +57,6 @@ def do_logout():
 
     if CURR_USER_KEY in session:
         del session[CURR_USER_KEY]
-
-@app.before_request
-def form_protection():
-    """Creates Csrf form protection"""
-
-    g.csrf_form = CsrfForm()
 
 
 @app.route('/signup', methods=["GET", "POST"])
@@ -122,15 +123,13 @@ def login():
 def logout():
     """Handle logout of user and redirect to homepage."""
 
-    form = g.csrf_form
-
-    if form.validate_on_submit():
-        do_logout()
-        flash("You are logged out!", "success")
+    if not g.csrf_form.validate_on_submit() or not g.user:
+        flash("Access unauthorized.", "danger")
         return redirect("/")
 
-    else:
-        raise Unauthorized()
+    flash("You are logged out!", "success")
+    do_logout()
+    return redirect("/")
 
     # IMPLEMENT THIS AND FIX BUG
     # DO NOT CHANGE METHOD ON ROUTE
@@ -189,7 +188,6 @@ def show_following(user_id):
 def show_followers(user_id):
     """Show list of followers of this user."""
 
-
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
@@ -204,15 +202,9 @@ def start_following(follow_id):
 
     Redirect to following page for the current for the current user.
     """
-
-    if not g.csrf_form.validate_on_submit():
+    if not g.csrf_form.validate_on_submit() or not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
-
-    if not g.user:
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
-
 
     followed_user = User.query.get_or_404(follow_id)
     g.user.following.append(followed_user)
@@ -221,18 +213,13 @@ def start_following(follow_id):
     return redirect(f"/users/{g.user.id}/following")
 
 
-
 @app.post('/users/stop-following/<int:follow_id>')
 def stop_following(follow_id):
     """Have currently-logged-in-user stop following this user.
 
     Redirect to following page for the current for the current user.
     """
-    if not g.csrf_form.validate_on_submit():
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
-
-    if not g.user:
+    if not g.csrf_form.validate_on_submit() or not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
@@ -256,12 +243,24 @@ def profile():
     if form.validate_on_submit():
         g.user.username = form.username.data
         g.user.email = form.email.data
-        g.user.image_url = form.image_url.data
-        g.user.header_image_url = form.header_image_url.data
+        g.user.image_url = form.image_url.data or DEFAULT_IMAGE_URL
+        g.user.header_image_url = form.header_image_url.data or DEFAULT_HEADER_IMAGE_URL
         g.user.bio = form.bio.data
 
-#TODO: handle password updates
+        authenticated_user = User.authenticate(
+            g.user.username,
+            form.password.data,
+        )
 
+        if authenticated_user:
+            db.session.commit()
+            return redirect(f"/users/{g.user.id}")
+
+        else:
+            flash("Invalid credentials.", 'danger')
+            return render_template("users/edit.html", form=form)
+    else:
+        return render_template("users/edit.html", form=form)
 
 
 @app.post('/users/delete')
@@ -270,18 +269,17 @@ def delete_user():
 
     Redirect to signup page.
     """
-    if not g.csrf_form.validate_on_submit():
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
 
-    if not g.user:
+    if not g.csrf_form.validate_on_submit() or not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
     do_logout()
 
+    Message.query.filter_by(user_id=g.user.id).delete()
     db.session.delete(g.user)
     db.session.commit()
+    flash("User Deleted!", "danger")
 
     return redirect("/signup")
 
@@ -331,11 +329,7 @@ def delete_message(message_id):
     Check that this message was written by the current user.
     Redirect to user page on success.
     """
-    if not g.csrf_form.validate_on_submit():
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
-
-    if not g.user:
+    if not g.csrf_form.validate_on_submit() or not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
@@ -344,7 +338,6 @@ def delete_message(message_id):
     if msg.user_id != g.user.id:
         flash("Access unauthorized.", "danger")
         return redirect("/")
-
 
     db.session.delete(msg)
     db.session.commit()
@@ -367,8 +360,12 @@ def homepage():
     form = CsrfForm()
 
     if g.user:
+        following_ids = [
+            following.id for following in g.user.following] + [g.user.id]
+
         messages = (Message
                     .query
+                    .filter(Message.user_id.in_(following_ids))
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
