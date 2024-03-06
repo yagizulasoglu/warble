@@ -47,8 +47,18 @@ class LoginForm(FlaskForm):
     )
 
 class CsrfForm(FlaskForm):
-    """For actions where we want CSRF protection, but don't need any fields.
+    """For actions where we want CSRF protection, but don't need any fields."""
 
-    Currently used for our "delete" buttons, which make POST requests, and the
-    logout button, which makes POST requests.
-    """
+class ProfileEditForm(UserAddForm):
+    """For editing the user profile of the signed in user"""
+
+    header_image_url = StringField(
+        'Header Image URL',
+        validators=[Optional(), URL(), Length(max=255)]
+    )
+
+    bio = TextAreaField('Bio')
+
+
+
+
