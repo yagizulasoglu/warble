@@ -98,6 +98,13 @@ class User(db.Model):
         backref="following",
     )
 
+    likes = db.relationship(
+        "Message",
+        secondary="likes",
+        backref="likes"
+    )
+
+
     def __repr__(self):
         return f"<User #{self.id}: {self.username}, {self.email}>"
 
@@ -182,6 +189,23 @@ class Message(db.Model):
         db.Integer,
         db.ForeignKey('users.id', ondelete='CASCADE'),
         nullable=False,
+    )
+
+class Likes(db.Model):
+    """Message likes"""
+
+    __tablename__ = "likes"
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="cascade"),
+        primary_key=True
+    )
+
+    message_id = db.Column(
+        db.Integer,
+        db.ForeignKey("messages.id", ondelete="cascade"),
+        primary_key=True
     )
 
 
