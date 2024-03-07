@@ -36,6 +36,8 @@ body.error-404 {
   color: #66757f;
   font-size: 13px;
   font-weight: bold;
+  border: none;
+  top: 8px;
 }
 
 .navbar a:hover {
@@ -289,9 +291,12 @@ nav + .container {
   background-color: #e6ecf0;
 }
 
-#messages .like-button {
+#messages .like-button button {
   position: absolute;
   z-index: 10;
+  border: none;
+  background: none;
+  right: 10px;
 }
 
 #sidebar-username {

@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 
 from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
-from werkzeug.exceptions import Unauthorized
 from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, LoginForm, MessageForm, CsrfForm, ProfileEditForm
@@ -23,11 +22,6 @@ app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
 
 connect_db(app)
 
-
-#TODO: update likes.html (currently empty)
-# check like/unlike routes
-# working like button is in home.html, will need to copy over to other places
-# if need starting point, click on like button on home page, it will break.
 
 ##############################################################################
 # User signup/login/logout
@@ -288,6 +282,7 @@ def delete_user():
 
     return redirect("/signup")
 
+
 @app.get('/users/<int:user_id>/likes')
 def show_likes(user_id):
     """Show list of liked messages of this user."""
@@ -299,9 +294,12 @@ def show_likes(user_id):
     user = User.query.get_or_404(user_id)
     return render_template('users/likes.html', user=user)
 
+
 @app.post('/users/like/<int:message_id>')
 def like_add(message_id):
-    """Likes a message and adds that message to likes."""
+    """Likes a message and adds that message to likes.
+    Redirects to likes page for the current user.
+    """
 
     if not g.csrf_form.validate_on_submit() or not g.user:
         flash("Access unauthorized.", "danger")
@@ -313,9 +311,12 @@ def like_add(message_id):
 
     return redirect(f"/users/{g.user.id}/likes")
 
+
 @app.post('/users/unlike/<int:message_id>')
 def like_remove(message_id):
-    """Likes a message and adds that message to likes."""
+    """Likes a message and adds that message to likes.
+    Redirects to likes page for the current user.
+    """
 
     if not g.csrf_form.validate_on_submit() or not g.user:
         flash("Access unauthorized.", "danger")
@@ -329,6 +330,7 @@ def like_remove(message_id):
 
 ##############################################################################
 # Messages routes:
+
 
 @app.route('/messages/new', methods=["GET", "POST"])
 def add_message():
@@ -426,4 +428,3 @@ def add_header(response):
     # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
     response.cache_control.no_store = True
     return response
-

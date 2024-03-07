@@ -20,14 +20,14 @@
         <p>{{ message.text }}</p>
       </div>
       {% if message.is_liked_by(g.user) %}
-      <form action="/users/unlike/{{message.id}}">
+      <form action="/users/unlike/{{ message.id }}" method="POST" class="like-button">
         {{ g.csrf_form.hidden_tag() }}
-        <i class="bi bi-heart-fill"></i>
+        <button type="submit"><i class="bi bi-heart-fill"></i></button>
       </form>
       {% else %}
-      <form action="/users/like/{{message.id}}">
+      <form action="/users/like/{{ message.id }}" method="POST" class="like-button">
         {{ g.csrf_form.hidden_tag() }}
-        <i class="bi bi-heart"></i>
+        <button type="submit"><i class="bi bi-heart"></i></button>
       </form>
       {% endif %}
     </li>
