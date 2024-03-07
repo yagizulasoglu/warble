@@ -283,6 +283,44 @@ def delete_user():
 
     return redirect("/signup")
 
+@app.get('/users/<int:user_id>/likes')
+def show_likes(user_id):
+    """Show list of liked messages of this user."""
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    user = User.query.get_or_404(user_id)
+    return render_template('users/likes.html', user=user)
+
+@app.post('/users/like/<int:message_id>')
+def like_add(message_id):
+    """Likes a message and adds that message to likes."""
+
+    if not g.csrf_form.validate_on_submit() or not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    liked_message = Message.query.get_or_404(message_id)
+    g.user.likes.append(liked_message)
+    db.session.commit()
+
+    return redirect(f"/users/{g.user.id}/likes")
+
+@app.post('/users/unlike/<int:message_id>')
+def like_remove(message_id):
+    """Likes a message and adds that message to likes."""
+
+    if not g.csrf_form.validate_on_submit() or not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    unliked_message = Message.query.get_or_404(message_id)
+    g.user.likes.remove(unliked_message)
+    db.session.commit()
+
+    return redirect(f"/users/{g.user.id}/likes")
 
 ##############################################################################
 # Messages routes:
@@ -383,3 +421,4 @@ def add_header(response):
     # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
     response.cache_control.no_store = True
     return response
+

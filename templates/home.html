@@ -57,6 +57,11 @@
               <span class="text-muted">{{ msg.timestamp.strftime('%d %B %Y') }}</span>
               <p>{{ msg.text }}</p>
             </div>
+            {if is_liked_by(msg, g.user)}
+            <form action="/users/{{ msg.user.id }}/likes">
+              {{ g.csrf_form.hidden_tag() }}
+              <i class="bi bi-heart"></i>
+            </form>
           </li>
         {% endfor %}
       </ul>
