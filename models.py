@@ -35,6 +35,7 @@ class Follow(db.Model):
         primary_key=True,
     )
 
+
 class Likes(db.Model):
     """Message likes"""
 
@@ -51,6 +52,7 @@ class Likes(db.Model):
         db.ForeignKey("messages.id", ondelete="cascade"),
         primary_key=True
     )
+
 
 class User(db.Model):
     """User in the system."""
@@ -119,7 +121,6 @@ class User(db.Model):
         secondary="likes",
         backref="users_liked_message"
     )
-
 
     def __repr__(self):
         return f"<User #{self.id}: {self.username}, {self.email}>"
@@ -207,11 +208,13 @@ class Message(db.Model):
         nullable=False,
     )
 
-    def is_liked_by(self, user):
+    def is_liked_by(self, other_user):
         """Is this message liked by user?"""
 
-        liked_user_list = [message for message in self.users_liked_message if message.user_id == user.id]
-        return len(liked_user_list) ==1
+        liked_user_list = [
+            user for user in self.users_liked_message if user.id == other_user.id]
+        return len(liked_user_list) == 1
+
 
 def connect_db(app):
     """Connect this database to provided Flask app.

@@ -289,6 +289,11 @@ nav + .container {
   background-color: #e6ecf0;
 }
 
+#messages .like-button {
+  position: absolute;
+  z-index: 10;
+}
+
 #sidebar-username {
   margin-top: 30px;
   font-size: 21px;

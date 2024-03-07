@@ -47,8 +47,8 @@
     <div class="col-lg-6 col-md-8 col-sm-12">
       <ul class="list-group" id="messages">
         {% for msg in messages %}
-          <li class="list-group-item">
-            <a href="/messages/{{ msg.id }}" class="message-link"/>
+        <li class="list-group-item">
+            <a href="/messages/{{ msg.id }}" class="message-link">
             <a href="/users/{{ msg.user.id }}">
               <img src="{{ msg.user.image_url }}" alt="" class="timeline-image">
             </a>
@@ -57,11 +57,17 @@
               <span class="text-muted">{{ msg.timestamp.strftime('%d %B %Y') }}</span>
               <p>{{ msg.text }}</p>
             </div>
-            {if is_liked_by(msg, g.user)}
-            <form action="/users/{{ msg.user.id }}/likes">
+            {% if msg.is_liked_by(g.user) %}
+            <form action="/users/unlike/{{ msg.id }}" method="POST" class="like-button">
               {{ g.csrf_form.hidden_tag() }}
-              <i class="bi bi-heart"></i>
+              <button type="submit"><i class="bi bi-heart-fill"></i></button>
             </form>
+            {% else %}
+            <form action="/users/like/{{ msg.id }}" method="POST" class="like-button">
+              {{ g.csrf_form.hidden_tag() }}
+              <button type="submit"><i class="bi bi-heart"></i></button>
+            </form>
+            {% endif %}
           </li>
         {% endfor %}
       </ul>

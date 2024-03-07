@@ -24,6 +24,11 @@ app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
 connect_db(app)
 
 
+#TODO: update likes.html (currently empty)
+# check like/unlike routes
+# working like button is in home.html, will need to copy over to other places
+# if need starting point, click on like button on home page, it will break.
+
 ##############################################################################
 # User signup/login/logout
 
@@ -303,7 +308,7 @@ def like_add(message_id):
         return redirect("/")
 
     liked_message = Message.query.get_or_404(message_id)
-    g.user.likes.append(liked_message)
+    g.user.liked_messages.append(liked_message)
     db.session.commit()
 
     return redirect(f"/users/{g.user.id}/likes")
@@ -317,7 +322,7 @@ def like_remove(message_id):
         return redirect("/")
 
     unliked_message = Message.query.get_or_404(message_id)
-    g.user.likes.remove(unliked_message)
+    g.user.liked_messages.remove(unliked_message)
     db.session.commit()
 
     return redirect(f"/users/{g.user.id}/likes")
