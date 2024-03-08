@@ -56,8 +56,8 @@ class UserModelTestCase(TestCase):
         u1 = User.query.get(self.u1_id)
 
         # User should have no messages & no followers
-        self.assertEqual(len(u1.messages), 0)
-        self.assertEqual(len(u1.followers), 0)
+        self.assertEqual(u1.messages, [])
+        self.assertEqual(u1.followers, [])
 
     def test_is_following(self):
         """Tests that User method is_following accurately detects if

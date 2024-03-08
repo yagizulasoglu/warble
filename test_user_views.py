@@ -5,6 +5,7 @@
 #    FLASK_DEBUG=False python -m unittest test_user_views.py
 
 
+from app import app, CURR_USER_KEY, session
 import os
 from unittest import TestCase
 
@@ -19,7 +20,6 @@ os.environ['DATABASE_URL'] = "postgresql:///warbler_test"
 
 # Now we can import app
 
-from app import app, CURR_USER_KEY, session
 
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 
@@ -49,7 +49,39 @@ class UserBaseViewTestCase(TestCase):
         db.session.commit()
         self.u1_id = u1.id
         self.u2_id = u2.id
-        #db.session.flush()
+        # db.session.flush()
+
+
+class UserDisplayViewTestCase(UserBaseViewTestCase):
+    """Tests user display routes"""
+
+    def test_list_users(self):
+        """Tests display of user list"""
+
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1_id
+
+        resp = c.get('/users')
+
+        self.assertEqual(resp.status_code, 200)
+
+        html = resp.get_data(as_text=True)
+        self.assertIn("<p>@u2</p>", html)
+
+    def test_show_user(self):
+        """Tests display of current user profile"""
+
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1_id
+
+            resp = c.get(f'/users/{self.u1_id}')
+
+            self.assertEqual(resp.status_code, 200)
+
+            html = resp.get_data(as_text=True)
+            self.assertIn('Edit Profile', html)
 
 
 class UserFollowerViewTestCase(UserBaseViewTestCase):
@@ -124,13 +156,12 @@ class UserFollowingViewTestCase(UserBaseViewTestCase):
 
     def test_logged_in_stops_following(self):
         """Tests if logged in user can unfollow someone"""
-# TODO: use follow route (line 120) to follow rather than going to database
+
         with app.test_client() as c:
             with c.session_transaction() as sess:
                 sess[CURR_USER_KEY] = self.u1_id
-            u1 = User.query.get(self.u1_id)
-            u2 = User.query.get(self.u2_id)
-            u1.following.append(u2)
+
+            c.post(f'/users/follow/{self.u2_id}')
 
             resp = c.post(
                 f'/users/stop-following/{self.u2_id}', follow_redirects=True)
@@ -175,13 +206,13 @@ class UserDeleteViewTestCase(UserBaseViewTestCase):
         """Tests delete request when no user is logged in"""
 
         with app.test_client() as c:
-            # TODO: User.query.count() vs len(all())
-            num_users = len(User.query.all())
+
+            num_users = User.query.count()
 
             resp = c.post('/users/delete', follow_redirects=True)
             self.assertEqual(resp.status_code, 200)
 
-            self.assertEqual(len(User.query.all()), num_users)
+            self.assertEqual(User.query.count(), num_users)
 
             html = resp.get_data(as_text=True)
             self.assertIn(
@@ -194,14 +225,15 @@ class UserSignupViewTestCase(UserBaseViewTestCase):
         """Tests if a user can sign up successfully"""
 
         with app.test_client() as c:
-            # TODO: test data structure instead of len
-            num_users = len(User.query.all())
+
+            users = User.query.all()
             resp = c.post('/signup', data={'username': "u3", 'email': "u3@email.com",
                           'password': "password"}, follow_redirects=True)
 
             self.assertEqual(resp.status_code, 200)
 
-            self.assertEqual(len(User.query.all()), num_users+1)
+            u3 = User.query.filter_by(username='u3').one()
+            self.assertEqual(User.query.all(), users + [u3])
 
             html = resp.get_data(as_text=True)
             self.assertIn(
@@ -266,13 +298,12 @@ class UserLogViewTestCase(UserBaseViewTestCase):
     def test_user_logout(self):
 
         with app.test_client() as c:
-            #with c.session_transaction() as sess:
+            # with c.session_transaction() as sess:
             #   sess[CURR_USER_KEY] = self.u1_id
             c.post('/login', data={
                 "username": "u1",
                 "password": "password"
             })
-
 
             self.assertEqual(session[CURR_USER_KEY], self.u1_id)
             resp = c.post('/logout', follow_redirects=True)
@@ -285,5 +316,6 @@ class UserLogViewTestCase(UserBaseViewTestCase):
             self.assertEqual(resp2.status_code, 200)
             html2 = resp2.get_data(as_text=True)
             self.assertIn("Access unauthorized.", html2)
-            self.assertNotEqual(session[CURR_USER_KEY], self.u1_id)
-#TODO: how session reacts in here?
+
+            with self.assertRaises(KeyError):
+                session[CURR_USER_KEY]
