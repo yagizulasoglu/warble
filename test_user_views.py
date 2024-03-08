@@ -102,6 +102,55 @@ class UserFollowingViewTestCase(UserBaseViewTestCase):
             self.assertIn(
                 '<a href="/signup" class="btn btn-primary">Sign up</a>', html)
 
+    def test_logged_in_starts_following(self):
+        """Tests if logged in user can follow someone"""
+
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1_id
+            resp = c.post(f'/users/follow/{self.u2_id}', follow_redirects=True)
+            self.assertEqual=(resp.status_code, 200)
+            html = resp.get_data(as_text=True)
+            self.assertIn('<p>@u2</p>', html)
+
+    def test_logged_out_starts_following(self):
+        """Tests if logged in user cannot follow someone"""
+
+        with app.test_client() as c:
+            resp = c.post(f'/users/follow/{self.u2_id}', follow_redirects=True)
+            self.assertEqual=(resp.status_code, 200)
+            html = resp.get_data(as_text=True)
+            self.assertIn('Access unauthorized.', html)
+
+    def test_logged_in_stops_following(self):
+        """Tests if logged in user can unfollow someone"""
+
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1_id
+            u1 = User.query.get(self.u1_id)
+            u2 = User.query.get(self.u2_id)
+            u1.following.append(u2)
+
+            resp = c.post(f'/users/stop-following/{self.u2_id}', follow_redirects=True)
+            self.assertEqual=(resp.status_code, 200)
+            html = resp.get_data(as_text=True)
+            self.assertNotIn('<p>@u2</p>', html)
+
+    def test_logged_out_stops_following(self):
+        """Tests if logged in user cannot unfollow someone"""
+
+        with app.test_client() as c:
+            u1 = User.query.get(self.u1_id)
+            u2 = User.query.get(self.u2_id)
+            u1.following.append(u2)
+
+            resp = c.post(f'/users/stop-following/{self.u2_id}', follow_redirects=True)
+            self.assertEqual=(resp.status_code, 200)
+            html = resp.get_data(as_text=True)
+            self.assertIn('Access unauthorized.', html)
+
+
 class UserDeleteViewTestCase(UserBaseViewTestCase):
 
     def test_delete_user(self):
@@ -118,7 +167,7 @@ class UserDeleteViewTestCase(UserBaseViewTestCase):
 
             html = resp.get_data(as_text=True)
             self.assertIn(
-                '<a href="/signup" class="btn btn-primary">Sign up</a>', html)
+                '<button class="btn btn-primary btn-lg">Sign me up!</button>', html)
 
     def test_delete_user_logged_out(self):
         """Tests delete request when no user is logged in"""
@@ -136,6 +185,40 @@ class UserDeleteViewTestCase(UserBaseViewTestCase):
             self.assertIn(
                 '<a href="/signup" class="btn btn-primary">Sign up</a>', html)
 
-#TODO: tested all question in the instructions.
-        #added tests for delete user routes.
-        #should look for any other routes to test.
+
+class UserSignupViewTestCase(UserBaseViewTestCase):
+
+    def test_signup(self):
+        """Tests if a user can sign up successfully"""
+
+        with app.test_client() as c:
+            num_users = len(User.query.all())
+            resp = c.post('/signup', data={'username': "u3", 'email': "u3@email.com",
+                          'password': "password"}, follow_redirects=True)
+
+            self.assertEqual(resp.status_code, 200)
+
+            self.assertEqual(len(User.query.all()), num_users+1)
+
+            html = resp.get_data(as_text=True)
+            self.assertIn(
+                '<ul class="list-group" id="messages">', html)
+
+    def test_fail_signup(self):
+        """Tests if a user is causing an integrity error with
+        invalid credentials and getting to see the sign up form again
+        """
+
+        with app.test_client() as c:
+            num_users = len(User.query.all())
+            resp = c.post('/signup', data={'username': None, 'email': "u3@email.com",
+                          'password': "password"})
+
+            self.assertEqual(resp.status_code, 200)
+
+            self.assertEqual(len(User.query.all()), num_users)
+
+            html = resp.get_data(as_text=True)
+            self.assertIn(
+                '<button class="btn btn-primary btn-lg">Sign me up!</button>', html)
+
