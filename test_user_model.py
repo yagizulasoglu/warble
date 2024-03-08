@@ -5,6 +5,7 @@
 #    python -m unittest test_user_model.py
 
 
+from app import app
 import os
 from unittest import TestCase
 from sqlalchemy.exc import IntegrityError
@@ -20,7 +21,6 @@ os.environ['DATABASE_URL'] = "postgresql:///warbler_test"
 
 # Now we can import app
 
-from app import app
 
 # Create our tables (we do this here, so we only create the tables
 # once for all tests --- in each test, we'll delete the data
@@ -165,7 +165,6 @@ class UserModelTestCase(TestCase):
 
         self.assertEqual(authenticated_user.id, self.u1_id)
 
-
     def test_fail_authenticate(self):
         """Tests if authenticate returns false with invalid credentials."""
 
@@ -176,4 +175,3 @@ class UserModelTestCase(TestCase):
         unauthenticated_user2 = User.authenticate("David", "password")
 
         self.assertFalse(unauthenticated_user2)
-

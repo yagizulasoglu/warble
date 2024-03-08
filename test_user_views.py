@@ -5,6 +5,7 @@
 #    FLASK_DEBUG=False python -m unittest test_user_views.py
 
 
+from app import app, CURR_USER_KEY
 import os
 from unittest import TestCase
 
@@ -19,7 +20,6 @@ os.environ['DATABASE_URL'] = "postgresql:///warbler_test"
 
 # Now we can import app
 
-from app import app, CURR_USER_KEY
 
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 
@@ -52,7 +52,7 @@ class UserBaseViewTestCase(TestCase):
         db.session.flush()
 
 
-class UserAddViewTestCase(UserBaseViewTestCase):
+class UserFollowerViewTestCase(UserBaseViewTestCase):
     def test_logged_in_follower_page(self):
         """Tests if logged in user can see followers page"""
 
@@ -64,7 +64,20 @@ class UserAddViewTestCase(UserBaseViewTestCase):
             self.assertEqual(resp.status_code, 200)
             html = resp.get_data(as_text=True)
             self.assertIn('<p class="small">Followers</p>', html)
-            #TODO: Nothing unique in those pages.
+
+    def test_logged_out_follower_page(self):
+        """Tests if logged out user cannot access follower page"""
+
+        with app.test_client() as c:
+            resp = c.get(f"/users/{self.u1_id}/followers",
+                         follow_redirects=True)
+            self.assertEqual(resp.status_code, 200)
+            html = resp.get_data(as_text=True)
+            self.assertIn(
+                '<a href="/signup" class="btn btn-primary">Sign up</a>', html)
+
+
+class UserFollowingViewTestCase(UserBaseViewTestCase):
 
     def test_logged_in_following_page(self):
         """Tests if logged in user can see following page"""
@@ -78,23 +91,51 @@ class UserAddViewTestCase(UserBaseViewTestCase):
             html = resp.get_data(as_text=True)
             self.assertIn('<p class="small">Following</p>', html)
 
-    def test_logged_out_follower_page(self):
-        """Tests if logged out user cannot access follower page"""
-
-        with app.test_client() as c:
-            resp = c.get(f"/users/{self.u1_id}/followers", follow_redirects=True)
-            self.assertEqual(resp.status_code, 200)
-            html = resp.get_data(as_text=True)
-            self.assertIn('<a href="/signup" class="btn btn-primary">Sign up</a>', html)
-
-
     def test_logged_out_following_page(self):
         """Tests if logged out user cannot access following page"""
 
         with app.test_client() as c:
-            resp = c.get(f"/users/{self.u1_id}/following", follow_redirects=True)
+            resp = c.get(f"/users/{self.u1_id}/following",
+                         follow_redirects=True)
             self.assertEqual(resp.status_code, 200)
             html = resp.get_data(as_text=True)
-            self.assertIn('<a href="/signup" class="btn btn-primary">Sign up</a>', html)
+            self.assertIn(
+                '<a href="/signup" class="btn btn-primary">Sign up</a>', html)
 
+class UserDeleteViewTestCase(UserBaseViewTestCase):
 
+    def test_delete_user(self):
+        """Tests user deleting their account"""
+
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1_id
+
+            resp = c.post('/users/delete', follow_redirects=True)
+            self.assertEqual(resp.status_code, 200)
+
+            self.assertIsNone(User.query.get(self.u1_id))
+
+            html = resp.get_data(as_text=True)
+            self.assertIn(
+                '<a href="/signup" class="btn btn-primary">Sign up</a>', html)
+
+    def test_delete_user_logged_out(self):
+        """Tests delete request when no user is logged in"""
+
+        with app.test_client() as c:
+
+            num_users = len(User.query.all())
+
+            resp = c.post('/users/delete', follow_redirects=True)
+            self.assertEqual(resp.status_code, 200)
+
+            self.assertEqual(len(User.query.all()), num_users)
+
+            html = resp.get_data(as_text=True)
+            self.assertIn(
+                '<a href="/signup" class="btn btn-primary">Sign up</a>', html)
+
+#TODO: tested all question in the instructions.
+        #added tests for delete user routes.
+        #should look for any other routes to test.

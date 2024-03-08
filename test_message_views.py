@@ -5,7 +5,6 @@
 #    FLASK_DEBUG=False python -m unittest test_message_views.py
 
 
-from app import app, CURR_USER_KEY
 import os
 from unittest import TestCase
 
@@ -20,6 +19,7 @@ os.environ['DATABASE_URL'] = "postgresql:///warbler_test"
 
 # Now we can import app
 
+from app import app, CURR_USER_KEY
 
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 
@@ -70,7 +70,7 @@ class MessageAddViewTestCase(MessageBaseViewTestCase):
 
             Message.query.filter_by(text="Hello").one()
 
-    def test_logged_out_add_message(self):
+    def test_add_message_logged_out(self):
         """Tests if logged out user cannot add a message"""
 
         with app.test_client() as c:
@@ -98,3 +98,36 @@ class MessageDeleteViewTestCase(MessageBaseViewTestCase):
             result = Message.query.filter_by(text="m1-text").all()
 
             self.assertEqual(len(result), 0)
+
+    def test_delete_message_logged_out(self):
+        """Tests user's ability to delete a message when logged out"""
+
+        with app.test_client() as c:
+
+            resp = c.post(f"/messages/{self.m1_id}/delete")
+
+            self.assertEqual(resp.status_code, 302)
+
+            result = Message.query.filter_by(text="m1-text").all()
+
+            self.assertEqual(len(result), 1)
+
+    def test_delete_other_users_message(self):
+        """Test logged in user's ability to delete oterh user's messages"""
+
+        with app.test_client() as c:
+
+            u2 = User.signup("u2", "u2@email.com", "password", None)
+            db.session.add(u2)
+            db.session.commit()
+
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = u2.id
+
+            resp = c.post(f"/messages/{self.m1_id}/delete")
+
+            self.assertEqual(resp.status_code, 302)
+
+            result = Message.query.filter_by(text="m1-text").all()
+
+            self.assertEqual(len(result), 1)
