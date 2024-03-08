@@ -8,7 +8,7 @@
 import os
 from unittest import TestCase
 
-from models import db, Message, User
+from models import db, Message, User, Likes
 
 # BEFORE we import our app, let's set an environmental variable
 # to use a different database for tests (we need to do this
@@ -131,3 +131,47 @@ class MessageDeleteViewTestCase(MessageBaseViewTestCase):
             result = Message.query.filter_by(text="m1-text").all()
 
             self.assertEqual(len(result), 1)
+
+class MessageLikeViewTestCase(MessageBaseViewTestCase):
+    """Message like view tests"""
+
+    def test_like_add(self):
+        """Test user liking a message"""
+
+        with app.test_client() as c:
+
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1_id
+
+            resp = c.post(f'/users/like/{self.m1_id}', follow_redirects=True)
+
+            self.assertEqual(resp.status_code, 200)
+
+            html = resp.get_data(as_text=True)
+            self.assertIn("m1-text", html)
+
+            num_likes = len(Likes.query.all())
+            self.assertEqual(num_likes, 1)
+
+    def test_unlike(self):
+        """Tests user unliking a message"""
+
+        with app.test_client() as c:
+
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1_id
+
+            u1 = User.query.get(self.u1_id)
+            liked_message = Message.query.get(self.m1_id)
+            u1.liked_messages.append(liked_message)
+
+
+            resp = c.post(f'/users/unlike/{self.m1_id}', follow_redirects=True)
+
+            self.assertEqual(resp.status_code, 200)
+
+            html = resp.get_data(as_text=True)
+            self.assertNotIn("m1-text", html)
+
+            num_likes = len(Likes.query.all())
+            self.assertEqual(num_likes, 0)

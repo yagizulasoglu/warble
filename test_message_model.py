@@ -7,9 +7,8 @@
 
 import os
 from unittest import TestCase
-from sqlalchemy.exc import IntegrityError
 
-from models import db, User, Message, Follow
+from models import db, User, Message
 
 # BEFORE we import our app, let's set an environmental variable
 # to use a different database for tests (we need to do this
@@ -63,8 +62,8 @@ class UserModelTestCase(TestCase):
         db.session.add(message)
         db.session.commit()
 
-        self.assertEqual(len(u1.messages), 1)
-        self.assertEqual(len(u2.messages), 0)
+        self.assertEqual(u1.messages, [message])
+        self.assertEqual(u2.messages, [])
 
     def test_is_liked_by(self):
         """Tests Message method is_liked_by"""

@@ -5,11 +5,10 @@
 #    FLASK_DEBUG=False python -m unittest test_user_views.py
 
 
-from app import app, CURR_USER_KEY
 import os
 from unittest import TestCase
 
-from models import db, Message, User
+from models import db, User
 
 # BEFORE we import our app, let's set an environmental variable
 # to use a different database for tests (we need to do this
@@ -20,6 +19,7 @@ os.environ['DATABASE_URL'] = "postgresql:///warbler_test"
 
 # Now we can import app
 
+from app import app, CURR_USER_KEY
 
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 
@@ -221,4 +221,26 @@ class UserSignupViewTestCase(UserBaseViewTestCase):
             html = resp.get_data(as_text=True)
             self.assertIn(
                 '<button class="btn btn-primary btn-lg">Sign me up!</button>', html)
+
+class UserUpdateProfileViewTestCase(UserBaseViewTestCase):
+
+    def test_user_update(self):
+
+        with app.test_client() as c:
+
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1_id
+
+        resp = c.post('/users/profile', data={
+            'username': "update",
+            'email': 'u1@email.com',
+            'bio': 'updated-bio',
+            'password': 'password'},
+            follow_redirects=True)
+
+        html = resp.get_data(as_text=True)
+        self.assertIn("updated-bio", html)
+        self.assertNotIn("u1", html)
+
+
 
