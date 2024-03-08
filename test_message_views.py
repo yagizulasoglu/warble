@@ -69,7 +69,7 @@ class MessageAddViewTestCase(MessageBaseViewTestCase):
             self.assertEqual(resp.status_code, 302)
 
             Message.query.filter_by(text="Hello").one()
-
+#TODO: follow redirects
     def test_add_message_logged_out(self):
         """Tests if logged out user cannot add a message"""
 
@@ -150,7 +150,7 @@ class MessageLikeViewTestCase(MessageBaseViewTestCase):
             html = resp.get_data(as_text=True)
             self.assertIn("m1-text", html)
 
-            num_likes = len(Likes.query.all())
+            num_likes = Likes.query.count()
             self.assertEqual(num_likes, 1)
 
     def test_unlike(self):
@@ -160,7 +160,7 @@ class MessageLikeViewTestCase(MessageBaseViewTestCase):
 
             with c.session_transaction() as sess:
                 sess[CURR_USER_KEY] = self.u1_id
-
+#TODO: user routes instead of database ops
             u1 = User.query.get(self.u1_id)
             liked_message = Message.query.get(self.m1_id)
             u1.liked_messages.append(liked_message)

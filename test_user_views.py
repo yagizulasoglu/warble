@@ -124,7 +124,7 @@ class UserFollowingViewTestCase(UserBaseViewTestCase):
 
     def test_logged_in_stops_following(self):
         """Tests if logged in user can unfollow someone"""
-
+#TODO: use follow route (line 120) to follow rather than going to database
         with app.test_client() as c:
             with c.session_transaction() as sess:
                 sess[CURR_USER_KEY] = self.u1_id
@@ -173,7 +173,7 @@ class UserDeleteViewTestCase(UserBaseViewTestCase):
         """Tests delete request when no user is logged in"""
 
         with app.test_client() as c:
-
+#TODO: User.query.count() vs len(all())
             num_users = len(User.query.all())
 
             resp = c.post('/users/delete', follow_redirects=True)
@@ -192,7 +192,7 @@ class UserSignupViewTestCase(UserBaseViewTestCase):
         """Tests if a user can sign up successfully"""
 
         with app.test_client() as c:
-            num_users = len(User.query.all())
+            num_users = len(User.query.all()) #TODO: test data structure instead of len
             resp = c.post('/signup', data={'username': "u3", 'email': "u3@email.com",
                           'password': "password"}, follow_redirects=True)
 
